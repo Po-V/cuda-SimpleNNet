@@ -1,8 +1,8 @@
 #include "layer.cuh"
 #include <cmath>
+#include <iostream>
 #include<curand_kernel.h>
 #include <cuda_runtime.h>
-#include "utils.cu"
 
 __global__ void initialize_weights(float* weights_d, int size, unsigned long long seed){
 
@@ -11,7 +11,7 @@ __global__ void initialize_weights(float* weights_d, int size, unsigned long lon
         // store information to generate sequence of random numbers;
         curandState state;
         // seed represents random number sequence starting point, idx allows sequence to start at different points
-        curand_init(seed, idx, 0, &state); // state is a pointer to curandState structure that will be initialized
+        curand_init(seed + idx, idx, 0, &state); // state is a pointer to curandState structure that will be initialized
         weights_d[idx] = curand_normal(&state) *sqrtf(2.0f / size); // He initialization
     }
 }
@@ -29,10 +29,9 @@ Layer::Layer(int input_size, int output_size, int activtion_type): input_size(in
     int numThreadsPerBlock = 128;
     int numBlocks = (input_size*output_size + numThreadsPerBlock - 1) / numThreadsPerBlock;
 
-    printf("launching kernel----");
-
+    printf("Launching kernel initialize_weights with %d blocks and %d threads per block\n", numBlocks, numThreadsPerBlock);
     initialize_weights<<<numBlocks, numThreadsPerBlock>>>(weights_d, input_size*output_size, time(nullptr));
-    // CHECK_CUDA_ERROR(cudaGetLastError());
+    cudaDeviceSynchronize();
 
     cudaError_t launch_error = cudaGetLastError();
     if (launch_error != cudaSuccess) {
@@ -77,7 +76,8 @@ std::vector<float> Layer::forward(const std:: vector<float>&input){
     int block_size = 256;
     int grid_size = (output_size + block_size - 1) / block_size;
     forward_kernel<<<grid_size, block_size>>>(input_d, output_d, weights_d, bias_d, input_size, output_size, activation_type);
-    CHECK_CUDA_ERROR(cudaGetLastError());
+    cudaDeviceSynchronize();
+    // CHECK_CUDA_ERROR(cudaGetLastError());
 
     std::vector<float> output(output_size);
     cudaMemcpy(output.data(), output_d, output_size*sizeof(float), cudaMemcpyDeviceToHost);
@@ -119,6 +119,9 @@ std::vector<float> Layer::backward(const std::vector<float>& output_error, float
     int numBlocks = (output_size + blockSize - 1) / blockSize;
     backward_kernel<<<numBlocks, blockSize>>>(input_d, output_d, weights_d, output_error_d, input_size, output_size, 
                                                 activation_type, learning_rate, bias_d, next_layer_error);
+    cudaDeviceSynchronize();                                            
+    // CHECK_CUDA_ERROR(cudaGetLastError());
+
     
     std::vector<float> input_error(input_size);
     cudaMemcpy(input_error.data(), input_error_d, input_size * sizeof(float), cudaMemcpyDeviceToHost);

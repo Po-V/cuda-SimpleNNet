@@ -6,7 +6,7 @@
 
 static inline void check_cuda_error(cudaError_t result, const char* func, const char* file, int line){
     if(result){
-        std::cerr << 'CUDA error at ' <<file << ':' << line << 'code =' << static_cast<unsigned int>(result)
+        std::cerr << "CUDA error at " <<file << ':' << line << "code =" << static_cast<unsigned int>(result)
         << "(" << cudaGetErrorString(result) << ") \"" << func << "\"" << std::endl;
         throw std::runtime_error("CUDA error");
     }
