@@ -1,93 +1,63 @@
-# # Compiler
-# NVCC := nvcc
-# # Compiler flags
-# NVCC_FLAGS := -std=c++11 -O3 -arch=sm_75
-
-# # source files
-# SRC := main.cu NeuralNetwork.cu layer.cu utils.cu
-# # object files
-# OBJ := $(SRC:.cu=.o)
-
-# # Test source files
-# TEST_SRC := test_layer.cu test_neural_network.cu
-# # test object files
-# TEST_OBJ := $(TEST_SRC:.cu=.o)
-# TEST_EXE := $(TEST_SRC:.cu=_test)
-
-# # target executable
-# TARGET := NeuralNetwork
-# # TEST_TARGET := Tests
-
-# # default target
-# all: $(TARGET) $(TEST_EXE)
-
-# # Link the target executable
-# $(TARGET): $(OBJ)
-# 	$(NVCC) $(NVCC_FLAGS) $(OBJ) -o $(TARGET)
-
-# $(TEST_EXE): %_test: %.o
-# 	$(NVCC) $(NVCC_FLAGS) $< -o $@
-
-# # Link the test executable
-# # $(TEST_TARGET): $(TEST_OBJ)
-# # 	$(NVCC) $(NVCC_FLAGS) $(TEST_OBJ) -o $(TEST_TARGET)
-
-# # compile source files
-# %.o: %.cu
-# 	$(NVCC) $(NVCC_FLAGS) -c $< -o $@
-
-# %_test.o: %.cu
-# 	$(NVCC) $(NVCC_FLAGS) -c $< -o $@
-
-# # clean up
-# clean:
-# 	rm -f $(OBJ) $(TEST_OBJ) $(TEST_EXE) $(TARGET)
-
-
-# Define the CUDA compiler
+# Compiler
 NVCC = nvcc
+# Compiler flags
+CXXFLAGS = -std=c++11 -O3 -arch=sm_75
 
-# Define the CUDA compilation flags
-NVCC_FLAGS := -std=c++11 -O3 -arch=sm_75
+# Directories
+SRC_DIR = src
+TEST_DIR = tests
+OBJ_DIR = obj
+BIN_DIR = bin
 
-# Define the source files and object files
-SRC = layer.cu NeuralNetwork.cu utils.cu
-OBJ = layer.o neuralnetwork.o utils.o
+# Executables
+EXEC = $(BIN_DIR)/main
+TEST_EXEC = $(BIN_DIR)/tests
 
-# Define the output binaries
-TEST_LAYER_EXEC = test_layer
-TEST_NEURAL_NETWORK_EXEC = test_neural_network
+#Source files
+SRC_FILES = $(SRC_DIR)/main.cu $(SRC_DIR)/NeuralNetwork.cu $(SRC_DIR)/layer.cu
+TEST_FILES = $(TEST_DIR)/test_neural_network.cu $(TEST_DIR)/test_layer.cu
 
-# Default target to build both test executables
-all: $(TEST_LAYER_EXEC) $(TEST_NEURAL_NETWORK_EXEC)
+# Object files
+OBJ_FILES = $(addprefix $(OBJ_DIR)/, $(notdir $(SRC_FILES:.cu=.o)))
+TEST_OBJ_FILES = $(addprefix $(OBJ_DIR)/, $(notdir $(TEST_FILES:.cu=.o)))
 
-# Rule to build test_layer executable
-$(TEST_LAYER_EXEC): test_layer.o layer.o utils.o
-	$(NVCC) $(NVCC_FLAGS) -o $@ test_layer.o layer.o utils.o
+# Targets
+.PHONY: all clean run test
 
-# Rule to build test_neural_network executable
-$(TEST_NEURAL_NETWORK_EXEC): test_neural_network.o neuralnetwork.o utils.o
-	$(NVCC) $(NVCC_FLAGS) -o $@ test_neural_network.o neuralnetwork.o utils.o
+all: $(EXEC)
 
-# Rule to build object files from .cu files
-test_layer.o: test_layer.cu layer.o utils.o
-	$(NVCC) $(NVCC_FLAGS) -c test_layer.cu -o test_layer.o
+# Create binary for main executables
+$(EXEC): $(OBJ_FILES) | $(BIN_DIR)
+	$(NVCC) $(CXXFLAGS) -o $@ $^
 
-test_neural_network.o: test_neural_network.cu neuralnetwork.o utils.o
-	$(NVCC) $(NVCC_FLAGS) -c test_neural_network.cu -o test_neural_network.o
+# Create object files from source
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu | $(OBJ_DIR)
+	$(NVCC) $(CXXFLAGS) -c -o $@ $<
 
-layer.o: layer.cu layer.cuh
-	$(NVCC) $(NVCC_FLAGS) -c layer.cu -o layer.o
+# Run the main program
+run: $(EXEC)
+	./$(EXEC)
 
-neuralnetwork.o: NeuralNetwork.cu NeuralNetwork.cuh
-	$(NVCC) $(NVCC_FLAGS) -c NeuralNetwork.cu -o neuralnetwork.o
+# Compile and run tests
+test: $(TEST_EXEC)
+	./$(TEST_EXEC)
 
-utils.o: utils.cu
-	$(NVCC) $(NVCC_FLAGS) -c utils.cu -o utils.o
+# Create binary for the test executable
+$(TEST_EXEC): $(TEST_OBJ_FILES) $(OBJ_FILES) | $(BIN_DIR)
+	$(NVCC) $(CXXFLAGS) -o $@ $^
 
-# Clean rule to remove compiled files
+# Create object files from test source
+$(OBJ_DIR)/%.o: $(TEST_DIR)/%.cu | $(OBJ_DIR)
+	$(NVCC) $(CXXFLAGS) -c -o $@ $<
+
+# Create required directories
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+# Clean build files
 clean:
-	rm -f *.o $(TEST_LAYER_EXEC) $(TEST_NEURAL_NETWORK_EXEC)
-
-.PHONY: all clean
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
