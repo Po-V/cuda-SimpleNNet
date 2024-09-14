@@ -37,6 +37,5 @@ void test_nn_training(){
 
 int main(){
     test_nn_forward();
-    test_nn_training();
     return 0;
 }

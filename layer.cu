@@ -39,7 +39,7 @@ Layer::Layer(int input_size, int output_size, int activtion_type): input_size(in
         throw std::runtime_error("Kernel launch failed");
     }
 
-    cudaMemset(bias_d, 0, output_size*sizeof(float));
+    cudaMemset(bias_d, 1, output_size*sizeof(float));
 }
 
 Layer::~Layer(){
@@ -63,7 +63,7 @@ __global__ void forward_kernel(float* input, float*output, float* weights, float
         if(activation_type ==0){
             output_val = fmaxf(0.0f, output_val);
         }else{
-            output_val = 1.0f / (1.0f + exp(-output_val));
+            output_val = 1.0f / (1.0f + expf(-output_val));
         }
 
         output[idx] = output_val;
@@ -77,8 +77,7 @@ std::vector<float> Layer::forward(const std:: vector<float>&input){
     int grid_size = (output_size + block_size - 1) / block_size;
     forward_kernel<<<grid_size, block_size>>>(input_d, output_d, weights_d, bias_d, input_size, output_size, activation_type);
     cudaDeviceSynchronize();
-    // CHECK_CUDA_ERROR(cudaGetLastError());
-
+   
     std::vector<float> output(output_size);
     cudaMemcpy(output.data(), output_d, output_size*sizeof(float), cudaMemcpyDeviceToHost);
     return output;
@@ -93,18 +92,10 @@ __global__ void backward_kernel(float* input, float* output, float* weights, flo
         if(activation_type == 0){
             derivative = (output[idx] >0.0f) ? 1.0f :0.0f;
         }else{
-            derivative = output[idx]*(1.0 - output[idx]);
+            derivative = output[idx]*(1.0f - output[idx]);
         }
         float delta = output_error[idx]*derivative;
-
-        // if(next_layer_error != nullptr){
-        //     delta =0.0f;
-        //     for(int i = 0; i < input_size; ++i){
-        //         delta += next_layer_error[i] * weights[i*output_size+idx];
-        //     }
-        //     delta *= derivative;
-        // }
-
+        
         for(int i = 0; i < input_size; i++){
             atomicAdd(&weights[idx * input_size+i], -learning_rate*delta*input[i]);
             atomicAdd(&input_error[i], delta * weights[idx * input_size + i]);
@@ -122,8 +113,6 @@ std::vector<float> Layer::backward(const std::vector<float>& output_error, float
     backward_kernel<<<numBlocks, blockSize>>>(input_d, output_d, weights_d, output_error_d, input_size, output_size, 
                                                 activation_type, learning_rate, bias_d, input_error_d);
     cudaDeviceSynchronize();                                            
-    // CHECK_CUDA_ERROR(cudaGetLastError());
-
     
     std::vector<float> input_error(input_size);
     cudaMemcpy(input_error.data(), input_error_d, input_size * sizeof(float), cudaMemcpyDeviceToHost);

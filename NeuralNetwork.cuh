@@ -3,7 +3,6 @@
 
 #include <vector>
 #include "layer.cuh"
-
 // Reprsents a class for neural networks
 class NeuralNetwork {
 public:
