@@ -35,20 +35,22 @@ void NeuralNetwork::train(const std::vector<std::vector<float>> & inputs,
             std::vector<float> output = forward(inputs[i]);
 
             // compute loss
-            std::vector<float> error(output.size());
+            std::vector<float> output_layer_error(output.size());
             for(size_t j =0; j< output.size(); ++j){
                 // targets is vector of vectors and represents multiple sets of target values
                 // output is single vector and represents the network's output for 1 input
-                error[j] = targets[i][j] - output[j];
+                output_layer_error[j] = targets[i][j] - output[j];
                 // calculate sum of squared errors
-                total_loss += error[j] * error[j];
+                total_loss += -(output_layer_error[j] * output_layer_error[j]);
+                // total_loss -= (targets[i][j] * log(output[j] + 1e-7) + (1 - targets[i][j]) * log(1 - output[j] + 1e-7));
             }
 
             // backward pass
-            std::vector<float> next_layer_error(output.size(), 0.0f);
+            // std::vector<float> next_layer_error(output.size(), 0.0f);
+            std::vector<float> propagated_error = output_layer_error;
             for(int j = layers.size() - 1; j>=0; --j){
-                next_layer_error = layers[j].backward(error, learning_rate, (j == layers.size() - 1) ? nullptr : next_layer_error.data());
-                error = next_layer_error;
+                propagated_error = layers[j].backward(output_layer_error, learning_rate);
+                // error = next_layer_error;
             }
         }
         std::cout<<"Epoch"<<epoch<<", Loss: "<<total_loss / inputs.size()<< std::endl;

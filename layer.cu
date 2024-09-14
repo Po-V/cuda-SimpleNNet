@@ -39,7 +39,7 @@ Layer::Layer(int input_size, int output_size, int activtion_type): input_size(in
         throw std::runtime_error("Kernel launch failed");
     }
 
-    cudaMemset(bias_d, 1, output_size*sizeof(float));
+    cudaMemset(bias_d, 0, output_size*sizeof(float));
 }
 
 Layer::~Layer(){
@@ -85,7 +85,7 @@ std::vector<float> Layer::forward(const std:: vector<float>&input){
 }
 
 __global__ void backward_kernel(float* input, float* output, float* weights, float* output_error, int input_size, 
-                                int output_size, int activation_type, float learning_rate, float* bias, float* next_layer_error){
+                                int output_size, int activation_type, float learning_rate, float* bias, float* input_error){
     int idx = blockIdx.x * blockDim.x +threadIdx.x;
 
     if(idx < output_size){
@@ -97,28 +97,30 @@ __global__ void backward_kernel(float* input, float* output, float* weights, flo
         }
         float delta = output_error[idx]*derivative;
 
-        if(next_layer_error != nullptr){
-            delta =0.0f;
-            for(int i = 0; i < input_size; ++i){
-                delta += next_layer_error[i] * weights[i*output_size+idx];
-            }
-            delta *= derivative;
-        }
+        // if(next_layer_error != nullptr){
+        //     delta =0.0f;
+        //     for(int i = 0; i < input_size; ++i){
+        //         delta += next_layer_error[i] * weights[i*output_size+idx];
+        //     }
+        //     delta *= derivative;
+        // }
 
         for(int i = 0; i < input_size; i++){
             atomicAdd(&weights[idx * input_size+i], -learning_rate*delta*input[i]);
+            atomicAdd(&input_error[i], delta * weights[idx * input_size + i]);
         }
         atomicAdd(&bias[idx], -learning_rate*delta);
     }
 }
 
-std::vector<float> Layer::backward(const std::vector<float>& output_error, float learning_rate, float* next_layer_error) {
+std::vector<float> Layer::backward(const std::vector<float>& output_error, float learning_rate) {
     cudaMemcpy(output_error_d, output_error.data(), output_error.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemset(input_error_d, 0, input_size * sizeof(float));
     
     int blockSize = 256;
     int numBlocks = (output_size + blockSize - 1) / blockSize;
     backward_kernel<<<numBlocks, blockSize>>>(input_d, output_d, weights_d, output_error_d, input_size, output_size, 
-                                                activation_type, learning_rate, bias_d, next_layer_error);
+                                                activation_type, learning_rate, bias_d, input_error_d);
     cudaDeviceSynchronize();                                            
     // CHECK_CUDA_ERROR(cudaGetLastError());
 

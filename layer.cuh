@@ -8,7 +8,7 @@ public:
     ~Layer();
 
     std::vector<float> forward(const std::vector<float> &input);
-    std::vector<float>backward(const std::vector<float> &output_error, float learning_rate, float* next_layer_error = nullptr);
+    std::vector<float>backward(const std::vector<float> &output_error, float learning_rate);
 
 private:
     int input_size;

@@ -38,7 +38,7 @@ int main(){
     generate_synthetic_data(inputs, targets, num_samples);
 
     float learning_rate = 0.1f;
-    int epochs = 20;
+    int epochs = 100;
 
     nn.train(inputs, targets, learning_rate, epochs);
 
