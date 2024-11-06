@@ -5,7 +5,7 @@ NeuralNetwork::NeuralNetwork(const std::vector<int> &layer_size){
     //size_t is used with size() function for vectors and index operation
     for(size_t i =1; i<layer_size.size(); ++i){
         // create layer object at the end of container
-        int activation_type = (i == layer_size.size() - 1) ? 1: 0; // isgmod for last layer, relu for others
+        int activation_type = (i == layer_size.size() - 1) ? 1: 0; // sigmod for last layer, relu for others
         layers.emplace_back(layer_size[i-1], layer_size[i], activation_type);
     }
 }
